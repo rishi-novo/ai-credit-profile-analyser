@@ -8,7 +8,6 @@ import {
     CardHeader,
     CardTitle,
     CardDescription,
-    CardFooter
 } from "@/components/ui/card";
 import {
     Select,
@@ -32,11 +31,54 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FileText, PieChart, Info, Download, Share2, Copy, Check, AlertCircle, RefreshCcw } from 'lucide-react';
+import { FileText, Info, Download, Share2, Copy, Check, RefreshCcw } from 'lucide-react';
 import LoanAnalysisTemplate from './LoanAnalysisTemplate';
+import JSONEditor from './JSONEditor';
 import * as templates from '@/data/templates';
-import { Textarea } from "@/components/ui/textarea";
+
+const validateTemplateStructure = (template) => {
+    const errors = [];
+
+    try {
+        // Check meta section
+        if (!template.meta) {
+            errors.push("Missing 'meta' section");
+        } else {
+            if (!template.meta.title) errors.push("Missing 'title' in meta");
+            if (!template.meta.author) errors.push("Missing 'author' in meta");
+        }
+
+        // Check sections
+        if (!template.sections || !Array.isArray(template.sections)) {
+            errors.push("Missing or invalid 'sections' array");
+        } else {
+            template.sections.forEach((section, index) => {
+                if (!section.type) errors.push(`Section ${index + 1}: Missing 'type'`);
+                if (!section.id) errors.push(`Section ${index + 1}: Missing 'id'`);
+                if (!section.heading?.text) {
+                    errors.push(`Section ${index + 1}: Missing heading text`);
+                }
+
+                // Validate content array
+                if (!section.content || !Array.isArray(section.content)) {
+                    errors.push(`Section ${index + 1}: Invalid or missing content array`);
+                } else {
+                    section.content.forEach((item, itemIndex) => {
+                        if (item.type === 'graph') {
+                            if (!item.data?.labels || !item.data?.datasets) {
+                                errors.push(`Section ${index + 1}, Content ${itemIndex + 1}: Invalid graph data structure`);
+                            }
+                        }
+                    });
+                }
+            });
+        }
+    } catch (error) {
+        errors.push(`Validation error: ${error.message}`);
+    }
+
+    return errors;
+};
 
 const LoanReportPanel = () => {
     const dispatch = useDispatch();
@@ -45,6 +87,7 @@ const LoanReportPanel = () => {
     const [selectedLoanType, setSelectedLoanType] = useState("business");
     const [jsonInput, setJsonInput] = useState("");
     const [jsonError, setJsonError] = useState(null);
+    const [validationErrors, setValidationErrors] = useState([]);
     const [previewTemplate, setPreviewTemplate] = useState(null);
     const [copied, setCopied] = useState(false);
 
@@ -60,6 +103,8 @@ const LoanReportPanel = () => {
         dispatch(setCurrentTemplate(template));
         setJsonInput(JSON.stringify(template, null, 2));
         setPreviewTemplate(template);
+        setValidationErrors([]);
+        setJsonError(null);
     }, [selectedLoanType, dispatch]);
 
     const handleTemplateChange = (value) => {
@@ -67,15 +112,19 @@ const LoanReportPanel = () => {
         dispatch(setSelectedTemplate(value));
     };
 
-    const handleJsonChange = (e) => {
-        const newValue = e.target.value;
-        setJsonInput(newValue);
-        try {
-            const parsed = JSON.parse(newValue);
+    const handleJsonChange = (value, parsed, error) => {
+        setJsonInput(value);
+        if (error) {
+            setJsonError(error);
+            setPreviewTemplate(null);
+            setValidationErrors([]);
+        } else {
             setJsonError(null);
-            setPreviewTemplate(parsed);
-        } catch (error) {
-            setJsonError(error.message);
+            const errors = validateTemplateStructure(parsed);
+            setValidationErrors(errors);
+            if (errors.length === 0) {
+                setPreviewTemplate(parsed);
+            }
         }
     };
 
@@ -90,6 +139,7 @@ const LoanReportPanel = () => {
         setJsonInput(JSON.stringify(template, null, 2));
         setPreviewTemplate(template);
         setJsonError(null);
+        setValidationErrors([]);
     };
 
     return (
@@ -101,18 +151,20 @@ const LoanReportPanel = () => {
                             <CardTitle className="text-2xl">Loan Report Generator</CardTitle>
                             <CardDescription>Generate detailed loan analysis reports</CardDescription>
                         </div>
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="outline" size="icon">
-                                        <Info className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Select loan type and view generated report</p>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                        <div className="flex gap-2">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="outline" size="icon">
+                                            <Info className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Select loan type and view generated report</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
                     </div>
                 </CardHeader>
 
@@ -198,26 +250,13 @@ const LoanReportPanel = () => {
                                     </div>
                                 </CardHeader>
                                 <CardContent>
-                                    {jsonError && (
-                                        <Alert variant="destructive" className="mb-4">
-                                            <AlertCircle className="h-4 w-4" />
-                                            <AlertDescription>
-                                                Invalid JSON format: {jsonError}
-                                            </AlertDescription>
-                                        </Alert>
-                                    )}
-                                    <div className="relative">
-                                        <Textarea
-                                            value={jsonInput}
-                                            onChange={handleJsonChange}
-                                            className="min-h-[600px] font-mono text-sm p-4 bg-slate-50 rounded-lg"
-                                            style={{
-                                                resize: 'vertical',
-                                                whiteSpace: 'pre',
-                                                tabSize: 2
-                                            }}
-                                        />
-                                    </div>
+                                    <JSONEditor
+                                        value={jsonInput}
+                                        onChange={handleJsonChange}
+                                        onReset={handleReset}
+                                        error={jsonError}
+                                        validationErrors={validationErrors}
+                                    />
                                 </CardContent>
                             </Card>
                         </TabsContent>

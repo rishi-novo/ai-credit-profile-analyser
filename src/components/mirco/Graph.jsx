@@ -6,24 +6,82 @@ import {
     ResponsiveContainer
 } from 'recharts';
 
+const COLORS = {
+    primary: ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'],
+    success: ['#22c55e', '#4ade80', '#86efac', '#bbf7d0'],
+    danger: ['#ef4444', '#f87171', '#fca5a5', '#fecaca'],
+    warning: ['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a'],
+    info: ['#06b6d4', '#22d3ee', '#67e8f9', '#a5f3fc']
+};
+
 const formatCurrency = (value) => {
+    if (typeof value === 'string') return value;
     if (value >= 10000000) return `₹${(value / 10000000).toFixed(1)}Cr`;
     if (value >= 100000) return `₹${(value / 100000).toFixed(1)}L`;
     return `₹${value.toLocaleString()}`;
 };
-import { chartStyles } from '@/utils/chartStyles';
-import { COLORS } from '@/utils/colors';
+
+const formatDate = (dateString) => {
+    try {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short'
+        });
+    } catch (e) {
+        return dateString;
+    }
+};
+
+const formatValue = (value) => {
+    if (typeof value === 'string') return value;
+    if (value < 2 && value > 0) return value.toFixed(3);
+    if (Number.isInteger(value)) return formatCurrency(value);
+    return value.toLocaleString();
+};
 
 const Graph = ({ type, data, chartConfig = {} }) => {
-    if (!data?.labels || !data?.datasets) return null;
+    if (!data?.labels) return null;
 
-    const formattedData = data.labels.map((label, i) => ({
-        name: label,
-        ...data.datasets.reduce((acc, dataset) => ({
-            ...acc,
-            [dataset.label || 'value']: dataset.data[i]
-        }), {})
-    }));
+    // Normalize datasets to handle both array and object formats
+    const normalizeDatasets = () => {
+        if (Array.isArray(data.datasets)) {
+            if (typeof data.datasets[0] === 'object') {
+                // Already in correct format
+                return data.datasets;
+            } else {
+                // Convert array of values to dataset object
+                return [{
+                    label: data.chart_config?.y_axis?.label || chartConfig?.yAxis?.label || 'Value',
+                    data: data.datasets,
+                    color: data.color || COLORS.primary[0]
+                }];
+            }
+        } else if (typeof data.datasets === 'number') {
+            // Handle single number
+            return [{
+                label: data.chart_config?.y_axis?.label || chartConfig?.yAxis?.label || 'Value',
+                data: [data.datasets],
+                color: data.color || COLORS.primary[0]
+            }];
+        }
+        return [];
+    };
+
+    // Format data for charts
+    const formattedData = data.labels.map((label, i) => {
+        const datasets = normalizeDatasets();
+        const dataPoint = {
+            name: label,
+            originalLabel: label // Keep original for tooltip
+        };
+
+        datasets.forEach(dataset => {
+            const value = Array.isArray(dataset.data) ? dataset.data[i] : dataset;
+            dataPoint[dataset.label || 'value'] = value;
+        });
+
+        return dataPoint;
+    });
 
     const commonProps = {
         width: "100%",
@@ -36,36 +94,52 @@ const Graph = ({ type, data, chartConfig = {} }) => {
 
         return (
             <div className="bg-white p-4 border rounded shadow-lg">
-                <p className="font-semibold text-gray-800 border-b pb-2 mb-2">{label}</p>
+                <p className="font-semibold text-gray-800 border-b pb-2 mb-2">
+                    {formatDate(label)}
+                </p>
                 {payload.map((item, index) => (
                     <p key={index} className="flex items-center gap-2 py-1">
-                        <span className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></span>
-                        <span className="font-medium">{item.name}:</span>
-                        <span className="text-gray-600">{formatCurrency(item.value)}</span>
+                        <span
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                        />
+                        <span className="font-medium">
+                            {item.name}:
+                        </span>
+                        <span className="text-gray-600">
+                            {formatValue(item.value)}
+                        </span>
                     </p>
                 ))}
             </div>
         );
     };
 
-    // Enhanced render methods with better styling
     const renderLineChart = () => (
         <LineChart {...commonProps} data={formattedData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis
                 dataKey="name"
-                label={{ value: chartConfig?.xAxis?.label, position: 'bottom', offset: 0 }}
-                tick={{ fontSize: 12, fill: '#6b7280' }}
+                label={{
+                    value: data.chart_config?.x_axis?.label || chartConfig?.xAxis?.label,
+                    position: 'bottom',
+                    offset: 0
+                }}
+                tick={{
+                    fontSize: 12,
+                    fill: '#6b7280',
+                    formatter: (value) => formatDate(value)
+                }}
                 stroke="#d1d5db"
             />
             <YAxis
                 label={{
-                    value: chartConfig?.yAxis?.label,
+                    value: data.chart_config?.y_axis?.label || chartConfig?.yAxis?.label,
                     angle: -90,
                     position: 'insideLeft',
                     offset: -10
                 }}
-                tickFormatter={formatCurrency}
+                tickFormatter={formatValue}
                 tick={{ fontSize: 12, fill: '#6b7280' }}
                 stroke="#d1d5db"
                 domain={[0, 'auto']}
@@ -77,15 +151,15 @@ const Graph = ({ type, data, chartConfig = {} }) => {
                 iconType="circle"
                 wrapperStyle={{ paddingTop: '20px' }}
             />
-            {data.datasets.map((dataset, index) => (
+            {normalizeDatasets().map((dataset, index) => (
                 <Line
                     key={index}
-                    name={dataset.label}
+                    name={dataset.label || `Series ${index + 1}`}
                     type="monotone"
-                    dataKey={dataset.label}
-                    stroke={dataset.color || COLORS.primary[index]}
+                    dataKey={dataset.label || 'value'}
+                    stroke={dataset.color}
                     strokeWidth={2}
-                    dot={{ fill: dataset.color || COLORS.primary[index], strokeWidth: 2 }}
+                    dot={{ fill: dataset.color, strokeWidth: 2 }}
                     activeDot={{ r: 8 }}
                 />
             ))}
@@ -98,8 +172,8 @@ const Graph = ({ type, data, chartConfig = {} }) => {
                 data={formattedData}
                 cx="50%"
                 cy="50%"
-                innerRadius={chartStyles.pie.style.innerRadius}
-                outerRadius={chartStyles.pie.style.outerRadius}
+                innerRadius="60%"
+                outerRadius="80%"
                 paddingAngle={2}
                 dataKey="value"
                 nameKey="name"
@@ -109,24 +183,25 @@ const Graph = ({ type, data, chartConfig = {} }) => {
                 {formattedData.map((entry, index) => (
                     <Cell
                         key={`cell-${index}`}
-                        fill={data.datasets[0].colors[index % data.datasets[0].colors.length]}
+                        fill={normalizeDatasets()[0]?.colors?.[index] || COLORS.primary[index % COLORS.primary.length]}
                     />
                 ))}
             </Pie>
             <Tooltip
-                formatter={formatCurrency}
-                contentStyle={chartStyles.common.tooltip.contentStyle}
+                formatter={(value, name) => [formatValue(value), name]}
+                contentStyle={{
+                    backgroundColor: 'white',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    padding: '8px 12px'
+                }}
             />
-            {/* <Legend
-                layout={chartConfig?.legend?.position === 'right' ? 'vertical' : 'horizontal'}
+            <Legend
+                layout="horizontal"
                 align="center"
                 verticalAlign="bottom"
                 iconType="circle"
-                wrapperStyle={{
-                    fontSize: chartStyles.common.fontSize,
-                    fontFamily: chartStyles.common.fontFamily
-                }}
-            /> */}
+            />
         </PieChart>
     );
 
@@ -136,7 +211,7 @@ const Graph = ({ type, data, chartConfig = {} }) => {
             <XAxis
                 dataKey="name"
                 label={{
-                    value: chartConfig?.xAxis?.label,
+                    value: data.chart_config?.x_axis?.label || chartConfig?.xAxis?.label,
                     position: 'bottom',
                     offset: 0
                 }}
@@ -145,11 +220,11 @@ const Graph = ({ type, data, chartConfig = {} }) => {
             />
             <YAxis
                 label={{
-                    value: chartConfig?.yAxis?.label,
+                    value: data.chart_config?.y_axis?.label || chartConfig?.yAxis?.label,
                     angle: -90,
                     position: 'insideLeft'
                 }}
-                tickFormatter={value => value.toFixed(0)}
+                tickFormatter={formatValue}
                 tick={{ fontSize: 12, fill: '#6b7280' }}
                 stroke="#d1d5db"
             />
@@ -160,18 +235,22 @@ const Graph = ({ type, data, chartConfig = {} }) => {
                 iconType="circle"
                 wrapperStyle={{ paddingTop: '20px' }}
             />
-            <Bar
-                name={data.datasets[0].label}
-                dataKey="value"
-                fill={data.datasets[0].color || COLORS.primary[0]}
-                barSize={chartConfig?.barSize || 40}
-                radius={[4, 4, 0, 0]}
-            />
+            {normalizeDatasets().map((dataset, index) => (
+                <Bar
+                    key={index}
+                    name={dataset.label || `Series ${index + 1}`}
+                    dataKey={dataset.label || 'value'}
+                    fill={dataset.color || COLORS.primary[0]}
+                    barSize={chartConfig?.barSize || 40}
+                    radius={[4, 4, 0, 0]}
+                />
+            ))}
         </BarChart>
     );
 
     const renderGraph = () => {
-        switch (type) {
+        const graphType = type || data.graph_type;
+        switch (graphType) {
             case 'line':
                 return renderLineChart();
             case 'pie':

@@ -61,12 +61,32 @@ const Section = ({
                 );
 
             case 'graph':
+                // Handle both graphType and graph_type
+                const graphType = item.graphType || item.graph_type;
+                if (!graphType || !item.data) return null;
+
+                console.log('Rendering graph with:', {
+                    type: graphType,
+                    data: item.data,
+                    config: item.data.chart_config || item.chartConfig
+                });
+
+                if (!graphType || !item.data) {
+                    console.warn('Missing required graph data:', { item });
+                    return null;
+                }
+
                 return (
                     <div className="w-full h-[400px] bg-white p-4 rounded-lg">
                         <Graph
-                            type={item.graphType}
-                            data={item.data}
-                            chartConfig={item.chartConfig}
+                            type={graphType}
+                            data={{
+                                labels: item.data.labels,
+                                datasets: item.data.datasets,
+                                color: item.data.color,
+                                chart_config: item.data.chart_config
+                            }}
+                            chartConfig={item.data.chart_config || item.chartConfig}
                         />
                     </div>
                 );
