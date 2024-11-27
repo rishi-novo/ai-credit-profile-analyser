@@ -7,6 +7,7 @@ import Table from './mirco/Table';
 import List from './mirco/List';
 import Paragraph from './mirco/Paragraph';
 import { AlertCircle, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
+import Heading from './mirco/Heading';
 
 
 // Define background color variants for sections
@@ -46,6 +47,25 @@ const Section = ({
     // Function to render the appropriate content based on type
     const renderContent = (item, index) => {
         switch (item.type) {
+
+            case 'heading':
+                return (
+                    <div className={cn("pt-4", item.className)}>
+                        <Heading
+                            key={index}
+                            level={item.level || 2}
+                            text={item.text}
+                            style={item.style}
+                            className={item.className}
+                        />
+                        {item.description && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                                {item.description}
+                            </p>
+                        )}
+                    </div>
+                );
+
             case 'table':
                 return (
                     <div className="rounded-lg overflow-hidden">

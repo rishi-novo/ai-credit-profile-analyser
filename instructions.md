@@ -140,6 +140,21 @@ Template
 }
 ```
 
+### 5. Heading
+```json
+{
+  "type": "heading",
+  "level": number (1-6),
+  "text": string,
+  "style": {
+    "color": string (hex color)
+  },
+  "description": string (optional),
+  "className": string (optional)
+}
+```
+
+
 ## Styling Guide
 
 ### Section Variants
