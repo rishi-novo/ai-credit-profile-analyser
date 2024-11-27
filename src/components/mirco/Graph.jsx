@@ -42,42 +42,40 @@ const formatValue = (value) => {
 const Graph = ({ type, data, chartConfig = {} }) => {
     if (!data?.labels) return null;
 
-    // Normalize datasets to handle both array and object formats
     const normalizeDatasets = () => {
-        if (Array.isArray(data.datasets)) {
-            if (typeof data.datasets[0] === 'object') {
-                // Already in correct format
-                return data.datasets;
-            } else {
-                // Convert array of values to dataset object
-                return [{
-                    label: data.chart_config?.y_axis?.label || chartConfig?.yAxis?.label || 'Value',
-                    data: data.datasets,
-                    color: data.color || COLORS.primary[0]
-                }];
-            }
-        } else if (typeof data.datasets === 'number') {
-            // Handle single number
+        const datasets = data.datasets;
+        if (!datasets) return [];
+
+        // Handle single dataset object format (from API)
+        if (!Array.isArray(datasets) && typeof datasets === 'object') {
             return [{
-                label: data.chart_config?.y_axis?.label || chartConfig?.yAxis?.label || 'Value',
-                data: [data.datasets],
-                color: data.color || COLORS.primary[0]
+                label: datasets.label,
+                data: datasets.data,
+                color: datasets.color
             }];
         }
+
+        // Handle array format
+        if (Array.isArray(datasets)) {
+            return datasets.map(dataset => ({
+                label: dataset.label,
+                data: dataset.data,
+                color: dataset.color
+            }));
+        }
+
         return [];
     };
 
-    // Format data for charts
     const formattedData = data.labels.map((label, i) => {
-        const datasets = normalizeDatasets();
+        const normalizedDatasets = normalizeDatasets();
         const dataPoint = {
             name: label,
-            originalLabel: label // Keep original for tooltip
+            originalLabel: label
         };
 
-        datasets.forEach(dataset => {
-            const value = Array.isArray(dataset.data) ? dataset.data[i] : dataset;
-            dataPoint[dataset.label || 'value'] = value;
+        normalizedDatasets.forEach(dataset => {
+            dataPoint[dataset.label] = dataset.data[i];
         });
 
         return dataPoint;

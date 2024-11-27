@@ -81,32 +81,28 @@ const Section = ({
                 );
 
             case 'graph':
-                // Handle both graphType and graph_type
                 const graphType = item.graphType || item.graph_type;
                 if (!graphType || !item.data) return null;
 
-                console.log('Rendering graph with:', {
-                    type: graphType,
-                    data: item.data,
-                    config: item.data.chart_config || item.chartConfig
-                });
-
-                if (!graphType || !item.data) {
-                    console.warn('Missing required graph data:', { item });
-                    return null;
-                }
+                // Transform the data structure to match the expected format
+                const transformedData = {
+                    labels: item.data.labels,
+                    datasets: Array.isArray(item.data.datasets)
+                        ? item.data.datasets
+                        : [{
+                            label: item.data.datasets.label,
+                            data: item.data.datasets.data,
+                            color: item.data.datasets.color
+                        }],
+                    chartConfig: item.data.chartConfig || item.data.chart_config
+                };
 
                 return (
                     <div className="w-full h-[400px] bg-white p-4 rounded-lg">
                         <Graph
                             type={graphType}
-                            data={{
-                                labels: item.data.labels,
-                                datasets: item.data.datasets,
-                                color: item.data.color,
-                                chart_config: item.data.chart_config
-                            }}
-                            chartConfig={item.data.chart_config || item.chartConfig}
+                            data={transformedData}
+                            chartConfig={item.data.chartConfig || item.data.chart_config}
                         />
                     </div>
                 );
