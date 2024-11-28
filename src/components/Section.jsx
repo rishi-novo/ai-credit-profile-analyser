@@ -12,13 +12,13 @@ import Heading from './mirco/Heading';
 
 // Define background color variants for sections
 const sectionStyles = {
-    primary: "bg-blue-50/50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800",
-    secondary: "bg-purple-50/50 dark:bg-purple-950/50 border-purple-200 dark:border-purple-800",
-    neutral: "bg-gray-50/50 dark:bg-gray-950/50 border-gray-200 dark:border-gray-800",
-    info: "bg-cyan-50/50 dark:bg-cyan-950/50 border-cyan-200 dark:border-cyan-800",
-    success: "bg-green-50/50 dark:bg-green-950/50 border-green-200 dark:border-green-800",
-    danger: "bg-red-50/50 dark:bg-red-950/50 border-red-200 dark:border-red-800",
-    warning: "bg-yellow-50/50 dark:bg-yellow-950/50 border-yellow-200 dark:border-yellow-800"
+    primary: "bg-blue-50/50 border-blue-200",
+    secondary: "bg-purple-50/50 border-purple-200",
+    neutral: "bg-gray-50/50 border-gray-200",
+    info: "bg-cyan-50/50 border-cyan-200",
+    success: "bg-green-50/50 border-green-200",
+    danger: "bg-red-50/50 border-red-200",
+    warning: "bg-yellow-50/50 border-yellow-200"
 };
 
 // Define header icons for different section types
