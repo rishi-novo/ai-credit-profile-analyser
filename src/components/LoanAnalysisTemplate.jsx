@@ -61,7 +61,7 @@ const LoanAnalysisTemplate = ({ template }) => {
     const meta = data.meta || {};
 
     return (
-        <ScrollArea className="h-[800px] w-full rounded-md">
+        <ScrollArea className="w-full rounded-md">
             <div className="p-6">
                 <Card className="mb-6">
                     <CardHeader>
